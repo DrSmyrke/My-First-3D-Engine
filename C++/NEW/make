@@ -1,0 +1,3 @@
+#!/bin/bash
+g++ start.cpp -o start -lglut -lGLU -lGL
+./start

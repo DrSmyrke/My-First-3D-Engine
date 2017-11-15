@@ -1,0 +1,1 @@
+g++ start.cpp -o start -lglut -lGLU

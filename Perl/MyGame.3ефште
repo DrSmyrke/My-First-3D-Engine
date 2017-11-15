@@ -1,0 +1,275 @@
+#!/usr/bin/perl
+$fps=$frame=0;
+$pi=3.1415926535;
+$mousecam=1;
+$fly=0;
+$jump=0;
+$jumpsila=2;
+$jumpspeed=0.3;
+$massa=0.001;
+$speedDown=0;
+$walkSpeed=0.1;
+$walk=0;
+$run=0;
+$runspeed=0.2;
+$cube=1;
+@move=(0,0,0,0);
+use OpenGL;
+use OpenGL qw/ :all /;
+use OpenGL::Config;
+use OpenGL::Image;
+use Time::HiRes;
+$dir=$0;$dir=~s#(.*)/.*#$1#;
+require "$dir/lib/init.pl";
+require "$dir/lib/reshape.pl";
+require "$dir/lib/functions.pl";
+require "$dir/lib/key.pl";
+require "$dir/lib/camera.pl";
+require "$dir/lib/text.pl";
+($WinW,$WinH)=(640,480);
+glutInit();
+glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH | GLUT_ALPHA);
+glutInitWindowSize($WinW,$WinH);
+glutInitWindowPosition(100,100);
+glutCreateWindow("MyGame v0.2");
+init();
+glutDisplayFunc(\&display);
+glutReshapeFunc(\&Reshape);
+glutKeyboardFunc(\&Keyboard);
+glutKeyboardUpFunc(\&KeyboardUp);
+glutSpecialFunc(\&KeyboardSpec);
+glutSpecialUpFunc(\&KeyboardSpecUp);
+glutPassiveMotionFunc(\&PassiveMotion);
+glutIdleFunc(\&UPD);	# простой
+glutMainLoop();
+
+
+sub display{
+	glLoadIdentity();
+	glClearColor(0.5,0.5,0.5,0.5);
+	Control(0.2,0.2,$mousecam);	#calculate the position, and rotate the camera
+	UpdateCamera();	#move the camera to the new location
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	$worldmaxheight=14;
+	$x=$z=0;$y=$worldmaxheight;
+	foreach $str(@region){
+		@str=split '',$str;
+		foreach $id(@str){
+			if($x<4){$x++;}else{$x=0;$z++;}
+			if($z>=4){$z=0;$y--;}
+			if($id){drawCube($x,$y,$z,$cube,255,252,255,0);}
+			#@build{"$x:$z:$y"}=$id;
+		}
+	}
+	drawCube(0,0,0,1,255,252,0,1);	#x y z R G B ID
+	drawCube(1,1,1,1,255,255,255,3);
+	drawCube(2,2,2,1,255,255,255,3);
+	drawCube(3,3,3,1,255,255,255,1);
+	drawCube(4,4,4,1,255,255,255,4);
+
+
+	drawGround();
+	glShadeModel(GL_SMOOTH);
+	glLineWidth(2);
+	glColor3ub(255,252,0);
+	glBegin(GL_LINES);
+	glVertex3f(0,0,0);
+	glVertex3f($WinW,0,0);
+	glColor3ub(255,159,0);
+	glVertex3f(0,0,0);
+	glVertex3f(0,$WinH,0);
+	glColor3ub(51,166,0);
+	glVertex3f(0,0,0);
+	glVertex3f(0,0,400);
+	glEnd();
+	glLineWidth(3);
+	glColor3f(0.0, 0.6, 0.9);
+	glutWireCube(10.0);
+	glFlush();
+
+	setText("X",10,0.1,0,255,255,255);
+	setText("Y",0.1,10,0,255,255,255);
+	setText("Z",0.1,0,10,255,255,255);
+
+	$buf=sprintf "FPS: %i",$fps;
+	ScreenText($buf,10,20,255,159,0,1,50,50,50,170,12);
+	ScreenText("FLY mode: $fly",10,32,255,159,0,1,50,50,50,170,12);
+	ScreenText("RUN mode: $run",10,44,255,159,0,1,50,50,50,170,12);
+	ScreenText("JUMP mode: $jump",10,56,255,159,0,1,50,50,50,170,12);
+	ScreenText("speedDown: $speedDown",10,68,255,159,0,1,50,50,50,170,12);
+	ScreenText("POS: [@pos]",10,80,255,159,0,1,50,50,50,170,12);
+#	$buf=sprintf "COORD: [%i,%i,%i]",$camX,$camY,$camZ;
+#	ScreenText($buf,10,92,255,159,0,1,50,50,50,170,12);
+	ScreenText("NEXT_POS: [@nextpos]",10,92,255,159,0,1,50,50,50,170,12);
+	ScreenText("WALK: [$walk]",10,104,255,159,0,1,50,50,50,170,12);
+	ScreenText("TEST: [$test]",10,116,255,159,0,1,50,50,50,170,12);
+
+
+	glutSwapBuffers();
+	$newtime=int(Time::HiRes::time);
+	if($newtime!=$oldtime){
+		$fps=$frame;
+		$frame=0;
+		$oldtime=$newtime;
+	}else{
+		$frame++;
+	}
+	if($mousecam){glutSetCursor(GLUT_CURSOR_NONE);}else{glutSetCursor(GLUT_CURSOR_INHERIT);}
+	@pos=getPos($camX,$camY,$camZ);
+	if($move[0]){
+		if($camPitch!=90 and $camPitch!=-90){
+			$grad=0;
+			$walk=$walkSpeed;
+#			@oldcord=($camX,$camY,$camZ);
+#			moveCamera(1,0.0);
+#			$nx=int $camX;$nz=int $camZ;
+#			$camX=$oldcord[0];
+#			$camZ=$oldcord[2];
+#			$test=$build{"$nx:$ny:$nz"};
+#			if(!$test){
+#				$tmp=int($camY-1);
+#				$test=$build{"$nx:$tmp:$nz"};
+#			}
+#			if(!$test){
+#				moveCamera($move[4],0.0);	#move forward
+#				moveCameraUp($move[4],0.0);	#move up/down
+#			}
+		}
+	}
+	if($move[1]){
+		if($camPitch!=90 and $camPitch!=-90){
+			$grad=180;
+			$walk=$walkSpeed;
+#			@oldcord=($camX,$camY,$camZ);
+#			moveCamera(1,180.0);
+#			$nx=int $camX;$nz=int $camZ;
+#			$camX=$oldcord[0];
+#			$camZ=$oldcord[2];
+#			$test=$build{"$nx:$ny:$nz"};
+#			if(!$test){
+#				$tmp=int($camY-1);
+#				$test=$build{"$nx:$tmp:$nz"};
+#			}
+#			if(!$test){
+#				moveCamera($move[4],180.0);	#move forward
+#				moveCameraUp($move[4],180.0);	#move up/down
+#			}
+		}
+	}
+	if($move[2]){$grad=270;$walk=$walkSpeed/2;}
+	if($move[3]){$grad=90;$walk=$walkSpeed/2;}
+	#if($run){$walk+=$runspeed;}else{$walk-=$runspeed;}
+	if(!$fly){
+		if($walk){
+			@oldcord=($camX,$camY,$camZ);
+			moveCamera($walk,$grad);
+			@nextpos=getPos($camX,$camY,$camZ);
+			$test=$build{"$nextpos[0]:$nextpos[1]:$nextpos[2]"};
+			if(!$test){
+				$tmp=$nextpos[1]-1;
+				$test=$build{"$nextpos[0]:$tmp:$nextpos[2]"};
+			}
+			if($test){
+				$camX=$oldcord[0];
+				$camY=$oldcord[1];
+				$camZ=$oldcord[2];
+				#moveCamera($walk/50,$grad+180);
+			}
+			$walk=0;
+		}
+		if($jump){$camY+=$jumpspeed-$speedDown;}
+		@oldcord=($camX,$camY,$camZ);
+		$speedDown+=$massa*9.8;
+		$camY-=$speedDown;
+		@nextpos=getPos($camX,$camY,$camZ);
+		$test=$build{"$nextpos[0]:$nextpos[1]:$nextpos[2]"};
+		if(!$test){
+			$tmp=$nextpos[1]-1;
+			$test=$build{"$nextpos[0]:$tmp:$nextpos[2]"};
+		}
+		if($test){
+			$camX=$oldcord[0];
+			$camY=$oldcord[1];
+			$camZ=$oldcord[2];
+			$jump=0;
+			$speedDown=0;
+		}
+		if($camY<1){$camY=1;$speedDown=0;$jump=0;}
+#		$ny=int $camY;
+#		$test=$build{"$nx:$ny:$nz"};
+#		if(!$test){
+#			$tmp=$ny-1;
+#			$test=$build{"$nx:$tmp:$nz"};
+#		}
+#		if($camY>1){
+#			$speedDown+=$massa*9.8;
+#			$camY-=$speedDown;
+#			$jump=0;
+#		}else{
+#			if($jump){
+#				$camY+=$jumpspeed;
+#			}
+#			if($jump and $camY<($camY+$jumpsila)){
+#				$camY+=$jumpspeed;
+#				$camY+=$jumpspeed-$speedDown;
+#			}
+#			$speedDown=0;
+#		}
+	}else{
+		if($walk){
+			moveCamera($walk,$grad);
+			if($grad!=270 and $grad!=90){
+				moveCameraUp($walk,$grad);
+			}
+			$walk-=$walkSpeed;
+			if($walk<0){$walk=0;}
+		}
+		$jump=0;
+		$speedDown=0;
+	}
+#	if(!$fly){
+#		$ny=int $camY;
+#		$test=$build{"$nx:$ny:$nz"};
+#		if(!$test){
+#			$tmp=int($camY-1);
+#			$test=$build{"$nx:$tmp:$nz"};
+#		}
+#		if($camY>1 and !$test){
+#			$speedDown+=$massa*9.8;
+#			@oldcord=($camX,$camY,$camZ);
+#			$tmp=int $camY;
+#			$tmp-=$speedDown;
+#			$ny=int $tmp;
+#			$test=$build{"$nx:$ny:$nz"};
+#			if(!$test){
+#				$tmp=$camY-1;
+#				$test=$build{"$nx:$tmp:$nz"};
+#			}
+#			$camY=$oldcord[1];
+#			if(!$test){
+#				$camY-=$speedDown;
+#			}
+#		}else{
+#			$camY=1;
+#			$speedDown=0;
+#			if($jump){
+#				$camY+=$jumpspeed;
+#			}
+#		}
+#		if($camY<1){$camY=1;$jump=0;}
+#	}else{
+#		$jump=0;
+#	}
+}
+sub PassiveMotion{
+	($mx,$my)=@_;
+#	glutWarpPointer($WinW/2,$WinH/2);
+#	glRotatef($r,$rotLx,$rotLy,$rotLz);
+#	display();
+}
+sub UPD{
+#	if($menu){display();}
+#	glRotatef($r,$rotLx,$rotLy,$rotLz);
+	glutPostRedisplay();
+}
